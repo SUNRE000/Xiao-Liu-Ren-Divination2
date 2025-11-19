@@ -39,6 +39,69 @@
             font-size: 32px;
         }
 
+        .input-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .datetime-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            color: #2c3e50;
+            transition: border-color 0.3s;
+        }
+
+        .datetime-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px;
+            background: white;
+            color: #7f8c8d;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .mode-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .mode-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
         .time-display {
             background: #f8f9fa;
             padding: 20px;
@@ -136,6 +199,17 @@
     <div class="container">
         <h1>小六壬占卜</h1>
         
+        <div class="input-section">
+            <div class="input-group">
+                <label for="dateInput">選擇日期時間：</label>
+                <input type="datetime-local" id="dateInput" class="datetime-input">
+            </div>
+            <div class="button-group">
+                <button class="mode-btn active" id="currentBtn" onclick="useCurrentTime()">使用當前時間</button>
+                <button class="mode-btn" id="customBtn" onclick="useCustomTime()">使用自訂時間</button>
+            </div>
+        </div>
+        
         <div class="time-display">
             <div class="time-row">
                 <span class="time-label">國曆時間</span>
@@ -158,7 +232,7 @@
             <div class="result-description" id="resultDescription"></div>
         </div>
 
-        <button class="refresh-btn" onclick="calculate()">重新占卜</button>
+        <button class="refresh-btn" onclick="calculate()">重新計算</button>
     </div>
 
     <script>
@@ -173,6 +247,15 @@
             { name: "小吉", desc: "人來喜時，五行屬木，顏色青色，方位東方。臨六合，謀事主一、五、七。有和合、吉利之含義。" },
             { name: "空亡", desc: "音信稀時，五行屬土，顏色黃色，方位中央。臨勾陳，謀事主三、六、九。有不吉、無結果、憂慮之含義。" }
         ];
+
+        // 當日期輸入改變時自動計算
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('dateInput').addEventListener('change', function() {
+                if (this.value) {
+                    useCustomTime();
+                }
+            });
+        });
 
         // 農曆數據表 (1900-2100)
         const lunarInfo = [
@@ -286,14 +369,51 @@
             return Math.floor((hour + 1) / 2) % 12;
         }
 
+        let isCustomMode = false;
+
+        function useCurrentTime() {
+            isCustomMode = false;
+            document.getElementById('currentBtn').classList.add('active');
+            document.getElementById('customBtn').classList.remove('active');
+            document.getElementById('dateInput').value = '';
+            calculate();
+        }
+
+        function useCustomTime() {
+            const dateInput = document.getElementById('dateInput');
+            if (!dateInput.value) {
+                // 設定預設值為當前時間
+                const now = new Date();
+                const offset = now.getTimezoneOffset() * 60000;
+                const localISOTime = new Date(now - offset).toISOString().slice(0, 16);
+                dateInput.value = localISOTime;
+            }
+            isCustomMode = true;
+            document.getElementById('currentBtn').classList.remove('active');
+            document.getElementById('customBtn').classList.add('active');
+            calculate();
+        }
+
         function calculate() {
-            const now = new Date();
-            const lunar = solarToLunar(now);
-            const timeZhiIndex = getTimeZhi(now.getHours());
+            let targetDate;
+            
+            if (isCustomMode) {
+                const dateInput = document.getElementById('dateInput');
+                if (dateInput.value) {
+                    targetDate = new Date(dateInput.value);
+                } else {
+                    targetDate = new Date();
+                }
+            } else {
+                targetDate = new Date();
+            }
+
+            const lunar = solarToLunar(targetDate);
+            const timeZhiIndex = getTimeZhi(targetDate.getHours());
             
             // 顯示時間資訊
             document.getElementById('gregorianTime').textContent = 
-                `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+                `${targetDate.getFullYear()}年${targetDate.getMonth() + 1}月${targetDate.getDate()}日 ${targetDate.getHours()}:${String(targetDate.getMinutes()).padStart(2, '0')}`;
             
             document.getElementById('lunarDate').textContent = 
                 `${lunar.year}年${lunar.isLeap ? '閏' : ''}${lunarMonths[lunar.month - 1]}月${lunar.day}日`;
@@ -304,7 +424,7 @@
             // 計算數值（各項減一後再相加）
             const monthNum = lunar.month - 1;
             const dayNum = lunar.day - 1;
-            const timeNum = timeZhiIndex; // 時辰index本身就是0-11，不需要再減1
+            const timeNum = timeZhiIndex;
             const sum = monthNum + dayNum + timeNum;
             const remainder = sum % 6;
 
@@ -320,6 +440,15 @@
 
         // 頁面載入時執行
         window.onload = calculate;
+
+        // 註冊 Service Worker（需要 HTTPS 或 localhost）
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker 註冊成功'))
+                    .catch(err => console.log('Service Worker 註冊失敗', err));
+            });
+        }
     </script>
 </body>
 </html>
